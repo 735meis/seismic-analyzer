@@ -220,29 +220,72 @@ def main():
 
         # Date range
         st.subheader("📅 Date Range")
-        col1, col2 = st.columns(2)
 
-        with col1:
-            # Default to 30 days ago
-            default_start = datetime.now() - timedelta(days=30)
-            start_date = st.date_input(
-                "Start Date",
-                value=default_start,
-                max_value=datetime.now().date(),
-                help="Starting date for earthquake search"
-            )
+        # Time range selection
+        time_range_option = st.selectbox(
+            "Select time range:",
+            options=[
+                "Today",
+                "Last 15 minutes",
+                "Last 30 minutes",
+                "Last 1 hour",
+                "Last 12 hours",
+                "Custom date range"
+            ],
+            index=0,  # Default to "Today"
+            help="Choose a preset time range or select custom dates"
+        )
 
-        with col2:
-            end_date = st.date_input(
-                "End Date",
-                value=datetime.now() - timedelta(days=1),
-                max_value=datetime.now().date(),
-                help="Ending date for earthquake search"
-            )
+        # Calculate datetime based on selection
+        if time_range_option == "Custom date range":
+            # Show date pickers for custom range
+            col1, col2 = st.columns(2)
 
-        # Convert dates to datetime
-        start_datetime = datetime.combine(start_date, datetime.min.time())
-        end_datetime = datetime.combine(end_date, datetime.max.time())
+            with col1:
+                # Default to 30 days ago
+                default_start = datetime.now() - timedelta(days=30)
+                start_date = st.date_input(
+                    "Start Date",
+                    value=default_start,
+                    max_value=datetime.now().date(),
+                    help="Starting date for earthquake search"
+                )
+
+            with col2:
+                end_date = st.date_input(
+                    "End Date",
+                    value=datetime.now() - timedelta(days=1),
+                    max_value=datetime.now().date(),
+                    help="Ending date for earthquake search"
+                )
+
+            # Convert dates to datetime
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+        else:
+            # Calculate datetime for preset ranges
+            current_time = datetime.now()
+            end_datetime = current_time
+
+            if time_range_option == "Last 15 minutes":
+                start_datetime = current_time - timedelta(minutes=15)
+            elif time_range_option == "Last 30 minutes":
+                start_datetime = current_time - timedelta(minutes=30)
+            elif time_range_option == "Last 1 hour":
+                start_datetime = current_time - timedelta(hours=1)
+            elif time_range_option == "Last 12 hours":
+                start_datetime = current_time - timedelta(hours=12)
+            elif time_range_option == "Today":
+                # Midnight today to current time
+                start_datetime = datetime.combine(current_time.date(), datetime.min.time())
+
+            # Extract date values for use in filename
+            start_date = start_datetime.date()
+            end_date = end_datetime.date()
+
+            # Display selected time range for user confirmation
+            st.caption(f"📅 From: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+            st.caption(f"📅 To: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 
         # Optional filters
         st.subheader("⚙️ Optional Filters")
@@ -275,13 +318,15 @@ def main():
             st.error("Please enter a location.")
             return
 
-        if start_datetime >= end_datetime:
-            st.error("Start date must be before end date.")
-            return
+        # Only validate custom date ranges (preset ranges are always valid)
+        if time_range_option == "Custom date range":
+            if start_datetime >= end_datetime:
+                st.error("Start date must be before end date.")
+                return
 
-        if end_datetime.date() > datetime.now().date():
-            st.error("End date cannot be in the future.")
-            return
+            if end_datetime.date() > datetime.now().date():
+                st.error("End date cannot be in the future.")
+                return
 
         try:
             # Step 1: Geocode location
