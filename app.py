@@ -25,6 +25,7 @@ from src.visualizations import (
     get_intensity_description
 )
 from src.utils import determine_time_granularity
+from src.analytics import inject_ga_tracking, track_event
 from config.settings import DEFAULT_SEARCH_RADIUS_KM
 
 
@@ -194,6 +195,9 @@ def format_statistics_display(stats: dict, location: str) -> None:
 def main():
     """Main application function."""
 
+    # Initialize Google Analytics tracking
+    inject_ga_tracking()
+
     # Header
     st.title("🌍 Seismic Earthquake Analyzer")
     st.markdown("""
@@ -316,6 +320,14 @@ def main():
 
     # Main area - Results
     if analyze_button:
+        # Track search event
+        track_event('search_earthquakes', {
+            'location_type': location_type,
+            'time_range': time_range_option,
+            'min_magnitude': min_magnitude,
+            'radius_km': radius_km
+        })
+
         # Validation
         if not location:
             st.error("Please enter a location.")
@@ -402,6 +414,13 @@ def main():
 
             # Display results
             st.success(f"✅ Analysis complete! Found {len(df)} earthquakes.")
+
+            # Track successful search with results
+            track_event('search_results', {
+                'earthquakes_found': len(df),
+                'location': location,
+                'has_dyfi_data': not df[(df['cdi'].notna()) | (df['felt'].notna())].empty
+            })
 
             # Summary metrics
             st.markdown("---")
@@ -532,12 +551,18 @@ def main():
                 st.markdown("Download the earthquake data as CSV")
 
                 csv = df.to_csv(index=False)
-                st.download_button(
+                if st.download_button(
                     label="📥 Download CSV",
                     data=csv,
                     file_name=f"earthquakes_{location}_{start_date}_{end_date}.csv",
                     mime="text/csv"
-                )
+                ):
+                    # Track data export
+                    track_event('export_data', {
+                        'format': 'csv',
+                        'location': location,
+                        'num_earthquakes': len(df)
+                    })
 
         except Exception as e:
             st.error(f"❌ An unexpected error occurred: {str(e)}")

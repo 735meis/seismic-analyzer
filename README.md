@@ -42,6 +42,32 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Google Analytics Setup (Optional)
+
+The app supports Google Analytics 4 tracking to monitor usage and user interactions.
+
+1. Create a Google Analytics 4 property and get your Measurement ID (format: `G-XXXXXXXXXX`)
+
+2. Create a `.streamlit/secrets.toml` file in your project root:
+```bash
+mkdir -p .streamlit
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+```
+
+3. Edit `.streamlit/secrets.toml` and add your Measurement ID:
+```toml
+GA_MEASUREMENT_ID = "G-XXXXXXXXXX"
+```
+
+4. The app will automatically track:
+   - Page views
+   - Search queries (with parameters)
+   - Successful search results
+   - Data exports
+   - User interaction patterns
+
+**Note**: The `.streamlit/secrets.toml` file is gitignored by default to keep your credentials secure.
+
 ## Usage
 
 1. Start the Streamlit application:
