@@ -4,13 +4,16 @@ Geocoding module to convert city names and zip codes to coordinates.
 
 import time
 from functools import lru_cache
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, Photon
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError, GeocoderUnavailable
 from config.settings import GEOCODING_USER_AGENT, GEOCODING_TIMEOUT, GEOCODING_RATE_LIMIT
 
 
-# Initialize the geocoder with more conservative settings
+# Initialize the primary geocoder (Nominatim) with conservative settings
 geolocator = Nominatim(user_agent=GEOCODING_USER_AGENT, timeout=GEOCODING_TIMEOUT)
+
+# Initialize the fallback geocoder (Photon) - no rate limits, uses same OSM data
+fallback_geolocator = Photon(user_agent=GEOCODING_USER_AGENT, timeout=GEOCODING_TIMEOUT)
 
 # Use a class to maintain state that survives module reloads
 class RateLimiter:
@@ -41,6 +44,7 @@ def _rate_limit():
 def geocode_location(location: str, is_zipcode: bool = False) -> tuple[float, float]:
     """
     Convert a city name or zip code to latitude and longitude coordinates.
+    Uses Nominatim as primary geocoder with Photon as fallback.
 
     Args:
         location: City name or zip code
@@ -62,14 +66,65 @@ def geocode_location(location: str, is_zipcode: bool = False) -> tuple[float, fl
     if is_zipcode:
         query = f"{query}, USA"
 
-    max_retries = 3
-    retry_delay = 2  # Start with 2 seconds for more conservative rate limiting
+    # Try Nominatim first
+    nominatim_error = None
+    try:
+        result = _try_geocode_with_retries(geolocator, query, location, use_rate_limit=True)
+        return result
+    except (GeocoderServiceError, GeocoderUnavailable) as e:
+        error_str = str(e)
+        # Only fall back to Photon if we hit rate limits or service unavailable
+        if "429" in error_str or "Too Many Requests" in error_str or "Rate limit exceeded" in error_str:
+            nominatim_error = e
+        else:
+            raise
+    except (GeocoderTimedOut, ValueError) as e:
+        # Don't fall back for timeout or location not found errors
+        raise
+
+    # Fall back to Photon if Nominatim is rate limited
+    try:
+        result = _try_geocode_with_retries(fallback_geolocator, query, location, use_rate_limit=False)
+        return result
+    except ValueError:
+        # If Photon also can't find the location, raise the original Nominatim error
+        # This provides better context to the user
+        if nominatim_error:
+            raise GeocoderServiceError(
+                f"Primary geocoding service rate limited, fallback service could not find location. "
+                f"Please wait a few seconds and try again."
+            )
+        raise
+
+
+def _try_geocode_with_retries(geocoder, query: str, location: str, use_rate_limit: bool = True, max_retries: int = 3) -> tuple[float, float]:
+    """
+    Helper function to try geocoding with retries.
+
+    Args:
+        geocoder: The geocoder instance to use
+        query: The formatted query string
+        location: The original location string (for error messages)
+        use_rate_limit: Whether to apply rate limiting
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        tuple[float, float]: (latitude, longitude)
+
+    Raises:
+        ValueError: If location cannot be geocoded
+        GeocoderTimedOut: If the geocoding request times out
+        GeocoderServiceError: If there's a service error
+        GeocoderUnavailable: If the service is unavailable
+    """
+    retry_delay = 2  # Start with 2 seconds for conservative rate limiting
 
     for attempt in range(max_retries):
         try:
-            _rate_limit()
+            if use_rate_limit:
+                _rate_limit()
 
-            result = geolocator.geocode(query)
+            result = geocoder.geocode(query)
 
             if result is None:
                 raise ValueError(
@@ -120,6 +175,7 @@ def geocode_location(location: str, is_zipcode: bool = False) -> tuple[float, fl
 def get_location_name(latitude: float, longitude: float) -> str:
     """
     Reverse geocode coordinates to get a location name.
+    Uses Nominatim as primary geocoder with Photon as fallback.
 
     Args:
         latitude: Latitude
@@ -128,11 +184,22 @@ def get_location_name(latitude: float, longitude: float) -> str:
     Returns:
         str: Location name or formatted coordinates if reverse geocoding fails
     """
+    # Try Nominatim first
     try:
         _rate_limit()
         location = geolocator.reverse((latitude, longitude), exactly_one=True)
         if location:
             return location.address
+    except (GeocoderServiceError, GeocoderUnavailable) as e:
+        error_str = str(e)
+        # Fall back to Photon if we hit rate limits
+        if "429" in error_str or "Too Many Requests" in error_str:
+            try:
+                location = fallback_geolocator.reverse((latitude, longitude), exactly_one=True)
+                if location:
+                    return location.address
+            except Exception:
+                pass
     except Exception:
         pass
 
