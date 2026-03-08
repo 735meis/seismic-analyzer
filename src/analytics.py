@@ -3,7 +3,6 @@ Google Analytics integration for Streamlit app
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 def inject_ga_tracking(measurement_id: str = None):
@@ -25,9 +24,11 @@ def inject_ga_tracking(measurement_id: str = None):
     if not measurement_id:
         return
 
-    # Google Analytics 4 tracking code
+    # Store measurement ID in session state for event tracking
+    st.session_state['ga_measurement_id'] = measurement_id
+
+    # Google Analytics 4 tracking code - inject into page, not iframe
     ga_code = f"""
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -37,8 +38,8 @@ def inject_ga_tracking(measurement_id: str = None):
     </script>
     """
 
-    # Inject the tracking code
-    components.html(ga_code, height=0)
+    # Use markdown with unsafe HTML to inject directly into page
+    st.markdown(ga_code, unsafe_allow_html=True)
 
 
 def track_event(event_name: str, event_params: dict = None):
@@ -49,11 +50,13 @@ def track_event(event_name: str, event_params: dict = None):
         event_name: Name of the event (e.g., 'search_earthquakes', 'export_data')
         event_params: Dictionary of event parameters (e.g., {'location': 'San Francisco'})
     """
-    # Try to get measurement ID to check if GA is configured
-    try:
-        measurement_id = st.secrets.get("GA_MEASUREMENT_ID")
-    except (FileNotFoundError, KeyError):
-        return
+    # Check if GA is configured via session state or secrets
+    measurement_id = st.session_state.get('ga_measurement_id')
+    if not measurement_id:
+        try:
+            measurement_id = st.secrets.get("GA_MEASUREMENT_ID")
+        except (FileNotFoundError, KeyError):
+            return
 
     if not measurement_id:
         return
@@ -75,11 +78,23 @@ def track_event(event_name: str, event_params: dict = None):
     # Create the gtag event tracking script
     event_code = f"""
     <script>
-        if (typeof gtag !== 'undefined') {{
-            gtag('event', '{event_name}', {params_str});
-        }}
+        // Wait a bit for gtag to be available, then track event
+        (function() {{
+            var attempts = 0;
+            var maxAttempts = 20;
+            var checkGtag = setInterval(function() {{
+                attempts++;
+                if (typeof gtag !== 'undefined') {{
+                    gtag('event', '{event_name}', {params_str});
+                    clearInterval(checkGtag);
+                }} else if (attempts >= maxAttempts) {{
+                    clearInterval(checkGtag);
+                    console.warn('GA gtag not available after ' + maxAttempts + ' attempts');
+                }}
+            }}, 100);
+        }})();
     </script>
     """
 
-    # Inject the event tracking code
-    components.html(event_code, height=0)
+    # Inject the event tracking code into the page
+    st.markdown(event_code, unsafe_allow_html=True)
