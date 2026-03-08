@@ -422,7 +422,7 @@ def main():
 
             # Map View
             st.subheader("🗺️ Earthquake Map View")
-            st.info(f"Interactive map showing earthquake locations. Click on markers for details. Larger markers indicate higher magnitudes.")
+            st.info(f"Interactive map showing earthquake locations. Purple dots indicate magnitude < 2.0, red dots indicate magnitude ≥ 2.0. Larger markers indicate higher magnitudes. Click on markers for details.")
             map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
             st.plotly_chart(map_fig, use_container_width=True)
 

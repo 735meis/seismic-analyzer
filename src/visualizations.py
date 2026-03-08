@@ -436,25 +436,56 @@ def create_earthquake_map(
     # Using exponential scaling for better visual distinction
     marker_sizes = df['magnitude'].apply(lambda m: 8 + (m ** 1.5) * 2)
 
+    # Create custom colors: purple for magnitude < 2, red scale for >= 2
+    # This provides better contrast for small earthquakes
+    marker_colors = []
+    for mag in df['magnitude']:
+        if mag < 2.0:
+            # Purple color for low magnitude earthquakes (better visibility)
+            marker_colors.append('#8B00FF')  # Dark purple
+        else:
+            # Red scale for higher magnitudes
+            # Map magnitude 2-8 to red intensity
+            normalized = min((mag - 2.0) / 6.0, 1.0)  # Normalize 2-8 to 0-1
+            # Interpolate from light red to dark red
+            red_intensity = int(139 + normalized * (220 - 139))  # 139 to 220
+            marker_colors.append(f'rgb({red_intensity}, 0, 0)')
+
     fig.add_trace(go.Scattermapbox(
         lat=df['latitude'],
         lon=df['longitude'],
         mode='markers',
         marker=dict(
             size=marker_sizes,
-            color=df['magnitude'],
-            colorscale=MAGNITUDE_COLOR_SCALE,
-            showscale=True,
-            colorbar=dict(
-                title="Magnitude",
-                x=1.02
-            ),
-            opacity=0.8,
+            color=marker_colors,
+            showscale=False,  # Disable automatic colorscale since we're using custom colors
+            opacity=1.0,
             sizemode='diameter'
         ),
         text=hover_text,
         hovertemplate='%{text}<extra></extra>',
         name='Earthquakes'
+    ))
+
+    # Add legend entries for color scheme
+    # Purple for magnitude < 2
+    fig.add_trace(go.Scattermapbox(
+        lat=[None],
+        lon=[None],
+        mode='markers',
+        marker=dict(size=10, color='#8B00FF'),
+        name='M < 2.0',
+        showlegend=True
+    ))
+
+    # Red for magnitude >= 2
+    fig.add_trace(go.Scattermapbox(
+        lat=[None],
+        lon=[None],
+        mode='markers',
+        marker=dict(size=10, color='rgb(180, 0, 0)'),
+        name='M ≥ 2.0',
+        showlegend=True
     ))
 
     # Add center point marker
