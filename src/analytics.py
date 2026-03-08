@@ -16,6 +16,21 @@ def get_client_id():
     return st.session_state['ga_client_id']
 
 
+def get_session_id():
+    """Get or create a session ID for this session."""
+    if 'ga_session_id' not in st.session_state:
+        # Use timestamp as session ID (GA4 standard practice)
+        st.session_state['ga_session_id'] = str(int(time.time()))
+        st.session_state['ga_session_start'] = time.time()
+    return st.session_state['ga_session_id']
+
+
+def get_engagement_time():
+    """Calculate engagement time in milliseconds since session start."""
+    session_start = st.session_state.get('ga_session_start', time.time())
+    return int((time.time() - session_start) * 1000)
+
+
 def inject_ga_tracking(measurement_id: str = None):
     """
     Initialize Google Analytics tracking.
@@ -37,17 +52,19 @@ def inject_ga_tracking(measurement_id: str = None):
     # Store measurement ID in session state
     st.session_state['ga_measurement_id'] = measurement_id
 
-    # Get or create client ID
+    # Get or create client ID and session ID
     get_client_id()
+    get_session_id()
 
     # Only send page_view once per session
     if 'ga_page_view_sent' not in st.session_state:
         st.session_state['ga_page_view_sent'] = True
 
-        # Send page_view event
+        # Send page_view event with session_start marker
         track_event('page_view', {
             'page_title': 'Seismic Earthquake Analyzer',
-            'page_location': 'streamlit_app'
+            'page_location': 'streamlit_app',
+            'session_start': 1  # Mark this as session start
         })
 
 
@@ -79,8 +96,14 @@ def track_event(event_name: str, event_params: dict = None):
     else:
         measurement_stream_id = measurement_id
 
-    # Get client ID
+    # Get client ID and session ID
     client_id = get_client_id()
+    session_id = get_session_id()
+    engagement_time = get_engagement_time()
+
+    # Add session parameters to event params
+    event_params['session_id'] = session_id
+    event_params['engagement_time_msec'] = engagement_time
 
     # Build the Measurement Protocol v2 (GA4) payload
     payload = {
