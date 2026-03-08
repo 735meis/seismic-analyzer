@@ -4,7 +4,7 @@ Configuration settings for the Seismic Earthquake Analyzer application.
 
 # USGS API Configuration
 USGS_API_BASE_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
-DEFAULT_SEARCH_RADIUS_KM = 50
+DEFAULT_SEARCH_RADIUS_KM = 10
 API_REQUEST_TIMEOUT = 30
 API_MAX_RETRIES = 3
 API_RESULT_LIMIT = 20000

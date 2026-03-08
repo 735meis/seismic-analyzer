@@ -5,6 +5,8 @@ Visualization functions using Plotly for interactive charts.
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import timezone
+import math
 from config.settings import (
     CHART_HEIGHT,
     MAGNITUDE_COLOR_SCALE,
@@ -339,5 +341,151 @@ def create_magnitude_vs_depth_scatter(df: pd.DataFrame) -> go.Figure:
 
     # Reverse x-axis to show shallow earthquakes on left
     fig.update_xaxes(autorange="reversed")
+
+    return fig
+
+
+def calculate_zoom_level(radius_km: float) -> float:
+    """
+    Calculate appropriate map zoom level based on search radius.
+
+    Args:
+        radius_km: Search radius in kilometers
+
+    Returns:
+        float: Zoom level for the map (higher = more zoomed in)
+    """
+    # Formula to approximate zoom level based on radius
+    # This is calibrated for Mapbox zoom levels (0-22)
+    if radius_km <= 10:
+        return 11
+    elif radius_km <= 25:
+        return 10
+    elif radius_km <= 50:
+        return 9
+    elif radius_km <= 100:
+        return 8
+    elif radius_km <= 250:
+        return 7
+    elif radius_km <= 500:
+        return 6
+    elif radius_km <= 1000:
+        return 5
+    elif radius_km <= 2000:
+        return 4
+    else:
+        return 3
+
+
+def create_earthquake_map(
+    df: pd.DataFrame,
+    center_lat: float,
+    center_lon: float,
+    radius_km: float
+) -> go.Figure:
+    """
+    Create an interactive map showing earthquake locations.
+
+    Args:
+        df: DataFrame with earthquake data
+        center_lat: Latitude of search center
+        center_lon: Longitude of search center
+        radius_km: Search radius in kilometers
+
+    Returns:
+        go.Figure: Plotly figure object with map
+    """
+    if df.empty:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No earthquake data to display",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=20)
+        )
+        return fig
+
+    # Create hover text with detailed information
+    hover_text = []
+    for _, row in df.iterrows():
+        # Format time in GMT
+        time_gmt = row['time'].strftime('%Y-%m-%d %H:%M:%S GMT')
+
+        # Try to get local time (using UTC offset if available, otherwise just show GMT)
+        # Note: For simplicity, we'll show GMT time. Full timezone conversion would require
+        # additional libraries or API calls for timezone lookup by coordinates
+        time_local = time_gmt  # Could be enhanced with timezone conversion
+
+        text = (
+            f"<b>{row['place']}</b><br>"
+            f"<b>Magnitude:</b> M {row['magnitude']:.1f}<br>"
+            f"<b>Time (GMT):</b> {time_gmt}<br>"
+            f"<b>Coordinates:</b> {row['latitude']:.4f}, {row['longitude']:.4f}<br>"
+            f"<b>Depth:</b> {row['depth']:.1f} km"
+        )
+        hover_text.append(text)
+
+    # Calculate zoom level
+    zoom = calculate_zoom_level(radius_km)
+
+    # Create the map
+    fig = go.Figure()
+
+    # Add earthquake markers
+    # Scale marker size proportionally to magnitude: larger earthquakes = larger markers
+    # Using exponential scaling for better visual distinction
+    marker_sizes = df['magnitude'].apply(lambda m: 8 + (m ** 1.5) * 2)
+
+    fig.add_trace(go.Scattermapbox(
+        lat=df['latitude'],
+        lon=df['longitude'],
+        mode='markers',
+        marker=dict(
+            size=marker_sizes,
+            color=df['magnitude'],
+            colorscale=MAGNITUDE_COLOR_SCALE,
+            showscale=True,
+            colorbar=dict(
+                title="Magnitude",
+                x=1.02
+            ),
+            opacity=0.8,
+            sizemode='diameter'
+        ),
+        text=hover_text,
+        hovertemplate='%{text}<extra></extra>',
+        name='Earthquakes'
+    ))
+
+    # Add center point marker
+    fig.add_trace(go.Scattermapbox(
+        lat=[center_lat],
+        lon=[center_lon],
+        mode='markers',
+        marker=dict(
+            size=15,
+            color='blue',
+            symbol='circle',
+            opacity=0.7
+        ),
+        text=[f"<b>Search Center</b><br>Lat: {center_lat:.4f}<br>Lon: {center_lon:.4f}<br>Radius: {radius_km} km"],
+        hovertemplate='%{text}<extra></extra>',
+        name='Search Center',
+        showlegend=True
+    ))
+
+    # Update map layout
+    fig.update_layout(
+        title="Earthquake Map View",
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=center_lat, lon=center_lon),
+            zoom=zoom
+        ),
+        height=600,
+        showlegend=True,
+        hovermode='closest',
+        margin=dict(l=0, r=0, t=40, b=0)
+    )
 
     return fig

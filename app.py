@@ -3,6 +3,7 @@ Seismic Earthquake Analyzer - Main Streamlit Application
 """
 
 import streamlit as st
+import streamlit_analytics
 from datetime import datetime, timedelta
 import pandas as pd
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -19,7 +20,8 @@ from src.visualizations import (
     create_occurrence_bar_chart,
     create_magnitude_distribution_chart,
     create_depth_distribution_chart,
-    create_magnitude_vs_depth_scatter
+    create_magnitude_vs_depth_scatter,
+    create_earthquake_map
 )
 from src.utils import determine_time_granularity
 from config.settings import DEFAULT_SEARCH_RADIUS_KM
@@ -311,6 +313,10 @@ def main():
         # Submit button
         analyze_button = st.button("🔍 Analyze Earthquakes", type="primary", use_container_width=True)
 
+        # Analytics info
+        st.markdown("---")
+        st.info("💡 To view usage analytics, add `?analytics=on` to the URL")
+
     # Main area - Results
     if analyze_button:
         # Validation
@@ -417,6 +423,14 @@ def main():
 
             st.markdown("---")
 
+            # Map View
+            st.subheader("🗺️ Earthquake Map View")
+            st.info(f"Interactive map showing earthquake locations. Click on markers for details. Larger markers indicate higher magnitudes.")
+            map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
+            st.plotly_chart(map_fig, use_container_width=True)
+
+            st.markdown("---")
+
             # Timeline Chart
             st.subheader("📈 Earthquake Timeline")
             st.info(f"Showing magnitude over time. Each point represents one earthquake.")
@@ -518,4 +532,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with streamlit_analytics.track():
+        main()
