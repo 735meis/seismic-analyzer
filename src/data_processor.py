@@ -45,13 +45,16 @@ def process_earthquake_data(geojson_data: dict) -> pd.DataFrame:
         coords = feature['geometry']['coordinates']
 
         record = {
+            'id': feature.get('id', ''),
             'time': pd.to_datetime(props['time'], unit='ms'),
             'magnitude': props.get('mag'),
             'depth': coords[2] if len(coords) > 2 else None,
             'place': props.get('place', 'Unknown'),
             'latitude': coords[1],
             'longitude': coords[0],
-            'type': props.get('type', 'earthquake')
+            'type': props.get('type', 'earthquake'),
+            'cdi': props.get('cdi'),  # Community Decimal Intensity
+            'felt': props.get('felt'),  # Number of felt reports
         }
         records.append(record)
 

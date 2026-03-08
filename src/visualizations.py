@@ -489,3 +489,117 @@ def create_earthquake_map(
     )
 
     return fig
+
+
+def create_dyfi_visualization(df: pd.DataFrame) -> go.Figure:
+    """
+    Create an engaging visualization for DYFI (Did You Feel It?) community data.
+
+    Args:
+        df: DataFrame with earthquake data including CDI and felt columns
+
+    Returns:
+        go.Figure: Plotly figure object
+    """
+    # Filter for earthquakes with DYFI data
+    dyfi_df = df[(df['cdi'].notna()) | (df['felt'].notna())].copy()
+
+    if dyfi_df.empty:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No community-reported data available for these earthquakes",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16, color="gray")
+        )
+        fig.update_layout(
+            height=300,
+            template='plotly_white'
+        )
+        return fig
+
+    # Sort by felt reports (descending)
+    dyfi_df = dyfi_df.sort_values('felt', ascending=False).head(15)  # Top 15
+
+    # Create hover text
+    hover_text = dyfi_df.apply(
+        lambda row: (
+            f"<b>{row['place']}</b><br>"
+            f"Magnitude: M {row['magnitude']:.1f}<br>"
+            f"Felt Reports: {int(row['felt']) if pd.notna(row['felt']) else 0}<br>"
+            f"Community Intensity: {row['cdi']:.1f} CDI" if pd.notna(row['cdi']) else ""
+        ),
+        axis=1
+    )
+
+    fig = go.Figure()
+
+    # Add bar chart for felt reports
+    fig.add_trace(go.Bar(
+        x=dyfi_df['felt'],
+        y=dyfi_df['place'].str[:50],  # Truncate long place names
+        orientation='h',
+        marker=dict(
+            color=dyfi_df['cdi'] if 'cdi' in dyfi_df.columns else dyfi_df['magnitude'],
+            colorscale='YlOrRd',
+            showscale=True,
+            colorbar=dict(
+                title="CDI",
+                x=1.15
+            ),
+            line=dict(width=1, color='white')
+        ),
+        text=hover_text,
+        hovertemplate='%{text}<extra></extra>',
+        name='Felt Reports'
+    ))
+
+    # Update layout
+    fig.update_layout(
+        title="Top Community-Reported Earthquakes",
+        xaxis_title="Number of 'Felt It' Reports",
+        yaxis_title="",
+        height=max(400, len(dyfi_df) * 30),
+        showlegend=False,
+        template='plotly_white',
+        yaxis=dict(autorange="reversed")
+    )
+
+    return fig
+
+
+def get_intensity_description(cdi: float) -> str:
+    """
+    Get the Modified Mercalli Intensity description for a given CDI value.
+
+    Args:
+        cdi: Community Decimal Intensity value
+
+    Returns:
+        str: Description of the intensity level
+    """
+    if pd.isna(cdi):
+        return "Not reported"
+
+    if cdi < 1:
+        return "Not felt"
+    elif cdi < 2:
+        return "Weak - Not felt except by very few"
+    elif cdi < 3:
+        return "Weak - Felt by few people at rest"
+    elif cdi < 4:
+        return "Weak - Felt indoors by many"
+    elif cdi < 5:
+        return "Light - Felt by most, some awakened"
+    elif cdi < 6:
+        return "Moderate - Felt by all, many frightened"
+    elif cdi < 7:
+        return "Strong - Everyone runs outdoors"
+    elif cdi < 8:
+        return "Severe - Damage to buildings"
+    elif cdi < 9:
+        return "Violent - General panic"
+    elif cdi < 10:
+        return "Extreme - Most buildings destroyed"
+    else:
+        return "Catastrophic - Total destruction"

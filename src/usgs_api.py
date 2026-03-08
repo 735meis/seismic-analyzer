@@ -190,3 +190,52 @@ def get_earthquake_count(
         latitude, longitude, start_date, end_date, min_magnitude, radius_km
     )
     return len(data.get('features', []))
+
+
+def fetch_dyfi_data(event_id: str) -> Optional[dict]:
+    """
+    Fetch DYFI (Did You Feel It?) data for a specific earthquake event.
+
+    Args:
+        event_id: USGS event ID
+
+    Returns:
+        dict: DYFI data including CDI, felt reports, etc., or None if not available
+
+    Raises:
+        USGSAPIError: If API request fails
+    """
+    try:
+        # Fetch detailed event information
+        url = f"https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/{event_id}.geojson"
+        response = requests.get(url, timeout=API_REQUEST_TIMEOUT)
+
+        if response.status_code == 404:
+            # Event not found or no detailed data available
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        properties = data.get('properties', {})
+
+        # Extract DYFI data
+        dyfi_data = {
+            'cdi': properties.get('cdi'),  # Community Decimal Intensity
+            'felt': properties.get('felt'),  # Number of felt reports
+            'mmi': properties.get('mmi'),  # Modified Mercalli Intensity
+            'alert': properties.get('alert'),  # Alert level
+            'sig': properties.get('sig'),  # Significance
+            'tsunami': properties.get('tsunami'),  # Tsunami flag
+        }
+
+        # Only return if there's actual DYFI data
+        if dyfi_data['cdi'] is not None or dyfi_data['felt'] is not None:
+            return dyfi_data
+
+        return None
+
+    except Exception as e:
+        # Silently fail for DYFI data - it's supplementary information
+        return None

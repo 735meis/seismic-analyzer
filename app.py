@@ -3,7 +3,6 @@ Seismic Earthquake Analyzer - Main Streamlit Application
 """
 
 import streamlit as st
-import streamlit_analytics
 from datetime import datetime, timedelta
 import pandas as pd
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -21,7 +20,9 @@ from src.visualizations import (
     create_magnitude_distribution_chart,
     create_depth_distribution_chart,
     create_magnitude_vs_depth_scatter,
-    create_earthquake_map
+    create_earthquake_map,
+    create_dyfi_visualization,
+    get_intensity_description
 )
 from src.utils import determine_time_granularity
 from config.settings import DEFAULT_SEARCH_RADIUS_KM
@@ -313,10 +314,6 @@ def main():
         # Submit button
         analyze_button = st.button("🔍 Analyze Earthquakes", type="primary", use_container_width=True)
 
-        # Analytics info
-        st.markdown("---")
-        st.info("💡 To view usage analytics, add `?analytics=on` to the URL")
-
     # Main area - Results
     if analyze_button:
         # Validation
@@ -431,6 +428,64 @@ def main():
 
             st.markdown("---")
 
+            # Community Confirmed Section (DYFI Data)
+            st.subheader("👥 Confirmed by Community")
+
+            # Check if we have any DYFI data
+            dyfi_data = df[(df['cdi'].notna()) | (df['felt'].notna())]
+
+            if not dyfi_data.empty:
+                # Summary metrics
+                total_felt_reports = int(dyfi_data['felt'].sum()) if dyfi_data['felt'].notna().any() else 0
+                avg_cdi = dyfi_data['cdi'].mean() if dyfi_data['cdi'].notna().any() else None
+                earthquakes_with_reports = len(dyfi_data)
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("👋 Total 'Felt It' Reports", f"{total_felt_reports:,}")
+                with col2:
+                    st.metric("📊 Earthquakes Reported", earthquakes_with_reports)
+                with col3:
+                    if avg_cdi:
+                        st.metric("🎯 Avg Community Intensity", f"{avg_cdi:.1f} CDI")
+                    else:
+                        st.metric("🎯 Avg Community Intensity", "N/A")
+
+                st.markdown("""
+                <div style='background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0;'>
+                    <b>📱 About DYFI (Did You Feel It?)</b><br>
+                    Community members report earthquake experiences through USGS's "Did You Feel It?" system.
+                    CDI (Community Decimal Intensity) measures how strongly people felt the earthquake, on a scale of 1-10.
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Visualization
+                dyfi_fig = create_dyfi_visualization(df)
+                st.plotly_chart(dyfi_fig, use_container_width=True)
+
+                # Show top felt earthquakes details
+                if len(dyfi_data) > 0:
+                    with st.expander("📋 Top Community-Reported Earthquakes Details"):
+                        top_dyfi = dyfi_data.nlargest(5, 'felt', keep='all')
+
+                        for idx, row in top_dyfi.iterrows():
+                            cdi_desc = get_intensity_description(row['cdi']) if pd.notna(row['cdi']) else "Not reported"
+                            felt_count = int(row['felt']) if pd.notna(row['felt']) else 0
+                            cdi_value = f"{row['cdi']:.1f}" if pd.notna(row['cdi']) else "N/A"
+
+                            st.markdown(f"""
+                            **{row['place']}**
+                            - 🎯 Magnitude: M {row['magnitude']:.1f}
+                            - 👥 Felt by: {felt_count:,} people
+                            - 📊 Community Intensity: {cdi_value} CDI - {cdi_desc}
+                            - 🕐 Time: {row['time'].strftime('%Y-%m-%d %H:%M:%S')}
+                            """)
+                            st.markdown("---")
+            else:
+                st.info("💡 No community-reported data available for these earthquakes. DYFI reports are typically available for larger or more widely-felt earthquakes.")
+
+            st.markdown("---")
+
             # Timeline Chart
             st.subheader("📈 Earthquake Timeline")
             st.info(f"Showing magnitude over time. Each point represents one earthquake.")
@@ -532,5 +587,4 @@ def main():
 
 
 if __name__ == "__main__":
-    with streamlit_analytics.track():
-        main()
+    main()
