@@ -192,6 +192,103 @@ def get_earthquake_count(
     return len(data.get('features', []))
 
 
+def fetch_earthquakes_global(
+    start_datetime: datetime,
+    end_datetime: datetime,
+    min_magnitude: float = 4.5
+) -> dict:
+    """
+    Fetch global earthquake data from the USGS API without location constraints.
+
+    Args:
+        start_datetime: Start datetime for search range
+        end_datetime: End datetime for search range
+        min_magnitude: Minimum magnitude filter
+
+    Returns:
+        dict: GeoJSON response from USGS API
+
+    Raises:
+        USGSAPIError: If API request fails
+    """
+    # Build query parameters
+    params = {
+        'format': 'geojson',
+        'starttime': format_date_for_api(start_datetime),
+        'endtime': format_date_for_api(end_datetime),
+        'minmagnitude': min_magnitude,
+        'orderby': 'magnitude',
+        'limit': 100
+    }
+
+    retry_delay = 1
+    last_exception = None
+
+    for attempt in range(API_MAX_RETRIES):
+        try:
+            response = requests.get(
+                USGS_API_BASE_URL,
+                params=params,
+                timeout=API_REQUEST_TIMEOUT
+            )
+
+            if response.status_code == 400:
+                error_message = "Invalid request parameters."
+                try:
+                    error_detail = response.json().get('detail', '')
+                    if error_detail:
+                        error_message += f" Details: {error_detail}"
+                except Exception:
+                    pass
+                raise USGSAPIError(error_message)
+
+            elif response.status_code == 503:
+                raise USGSAPIError(
+                    "USGS service is temporarily unavailable. Please try again later."
+                )
+
+            elif response.status_code != 200:
+                raise USGSAPIError(
+                    f"USGS API returned status code {response.status_code}: {response.text}"
+                )
+
+            return response.json()
+
+        except requests.exceptions.Timeout:
+            last_exception = USGSAPIError(
+                f"Request timed out after {API_REQUEST_TIMEOUT} seconds."
+            )
+            if attempt < API_MAX_RETRIES - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                raise last_exception
+
+        except requests.exceptions.ConnectionError:
+            last_exception = USGSAPIError(
+                "Failed to connect to USGS API. Please check your internet connection."
+            )
+            if attempt < API_MAX_RETRIES - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                raise last_exception
+
+        except requests.exceptions.RequestException as e:
+            raise USGSAPIError(f"Request failed: {str(e)}")
+
+        except USGSAPIError:
+            raise
+
+        except Exception as e:
+            raise USGSAPIError(f"Unexpected error: {str(e)}")
+
+    if last_exception:
+        raise last_exception
+    else:
+        raise USGSAPIError("Failed to fetch earthquake data after multiple attempts.")
+
+
 def fetch_dyfi_data(event_id: str) -> Optional[dict]:
     """
     Fetch DYFI (Did You Feel It?) data for a specific earthquake event.
