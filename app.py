@@ -653,9 +653,326 @@ def inject_custom_css():
             }
         }
 
+        /* Info box styling */
+        .info-box {
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #6366f1;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+        }
+
         /* Smooth scrolling */
         html {
             scroll-behavior: smooth;
+        }
+
+        /* ============================================
+           DARK MODE SUPPORT
+           ============================================ */
+        @media (prefers-color-scheme: dark) {
+            /* Base app background */
+            .stApp {
+                background-color: #0a0a0a;
+                color: #e5e5e5;
+            }
+
+            /* Main container */
+            .main .block-container {
+                background-color: transparent;
+            }
+
+            /* Hero text - Light gradient for dark mode */
+            .hero-text {
+                color: #e5e5e5;
+                background: linear-gradient(135deg, #ffffff 0%, #a3a3a3 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+
+            /* Subtitle - Light gray */
+            .subtitle {
+                color: #a3a3a3;
+            }
+
+            /* Earthquake cards - Dark with subtle gradient */
+            .earthquake-card {
+                background: linear-gradient(145deg, #1a1a1a 0%, #262626 100%);
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+            }
+
+            .earthquake-card:hover {
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+            }
+
+            /* Location and time text */
+            .location-text {
+                color: #e5e5e5;
+            }
+
+            .time-text {
+                color: #a3a3a3;
+            }
+
+            /* Metrics - Dark background with light text */
+            div[data-testid="metric-container"] {
+                background: linear-gradient(145deg, #1a1a1a 0%, #262626 100%);
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+
+            div[data-testid="metric-container"]:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            }
+
+            div[data-testid="metric-container"] label {
+                color: #a3a3a3;
+            }
+
+            div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+                color: #e5e5e5;
+            }
+
+            /* Sidebar - Dark background */
+            section[data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+                border-right: 1px solid rgba(255,255,255,0.1);
+            }
+
+            section[data-testid="stSidebar"] h2 {
+                color: #e5e5e5;
+            }
+
+            section[data-testid="stSidebar"] h3 {
+                color: #d4d4d4;
+            }
+
+            section[data-testid="stSidebar"] .stRadio label {
+                color: #d4d4d4;
+            }
+
+            section[data-testid="stSidebar"] .stTextInput input,
+            section[data-testid="stSidebar"] .stSelectbox select {
+                background-color: #262626;
+                color: #e5e5e5;
+                border: 1px solid rgba(255,255,255,0.2);
+            }
+
+            section[data-testid="stSidebar"] .stTextInput input:focus,
+            section[data-testid="stSidebar"] .stSelectbox select:focus {
+                border-color: #8b5cf6;
+                box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+            }
+
+            /* Slider labels */
+            .stSlider label {
+                color: #d4d4d4;
+            }
+
+            /* Main headings */
+            .main h2 {
+                color: #e5e5e5;
+            }
+
+            .main h3 {
+                color: #d4d4d4;
+            }
+
+            /* Info boxes - Darker versions */
+            .info-box {
+                background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                border-left: 4px solid #6366f1;
+                color: #93c5fd;
+                box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+            }
+
+            .stInfo {
+                background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                border-left: 4px solid #6366f1;
+                color: #93c5fd;
+                box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+            }
+
+            .stSuccess {
+                background: linear-gradient(135deg, #14532d 0%, #052e16 100%);
+                border-left: 4px solid #22c55e;
+                color: #86efac;
+            }
+
+            .stError {
+                background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
+                border-left: 4px solid #ef4444;
+                color: #fca5a5;
+            }
+
+            /* Expander headers */
+            .streamlit-expanderHeader {
+                color: #e5e5e5;
+                background: #1a1a1a;
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+
+            /* Date input and other form elements */
+            section[data-testid="stSidebar"] .stDateInput input {
+                background-color: #262626;
+                color: #e5e5e5;
+                border: 1px solid rgba(255,255,255,0.2);
+            }
+
+            /* Ensure text in columns is visible */
+            div[data-testid="column"] {
+                color: #e5e5e5;
+            }
+
+            /* Plotly charts - adjust for dark mode */
+            .js-plotly-plot {
+                background-color: transparent !important;
+            }
+
+            /* Mobile navigation hint for dark mode */
+            @media (max-width: 768px) {
+                .mobile-nav-hint {
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: #ffffff;
+                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+                }
+
+                /* Ensure hamburger menu is visible in dark mode */
+                button[kind="header"],
+                button[data-testid="baseButton-header"],
+                button[kind="headerNoPadding"],
+                [data-testid="collapsedControl"] {
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+                    color: white !important;
+                }
+
+                button[kind="header"] svg,
+                button[data-testid="baseButton-header"] svg,
+                button[kind="headerNoPadding"] svg,
+                [data-testid="collapsedControl"] svg {
+                    color: white !important;
+                    fill: white !important;
+                }
+            }
+
+            /* Ensure all paragraph text is visible */
+            p, span, div {
+                color: inherit;
+            }
+
+            /* Radio button text visibility */
+            .stRadio > label {
+                color: #d4d4d4;
+            }
+
+            /* Selectbox dropdown options */
+            option {
+                background-color: #262626;
+                color: #e5e5e5;
+            }
+
+            /* Streamlit native elements */
+            [data-testid="stMarkdownContainer"] {
+                color: #e5e5e5;
+            }
+
+            /* Ensure labels are visible */
+            label {
+                color: #d4d4d4 !important;
+            }
+
+            /* Text input labels */
+            .stTextInput > label,
+            .stSelectbox > label,
+            .stDateInput > label {
+                color: #d4d4d4 !important;
+            }
+
+            /* Additional mobile improvements for dark mode */
+            @media (max-width: 768px) {
+                /* Ensure sidebar content is scrollable and visible */
+                section[data-testid="stSidebar"] > div {
+                    background-color: #0a0a0a;
+                }
+
+                /* Better contrast for form elements on mobile */
+                section[data-testid="stSidebar"] .stTextInput input,
+                section[data-testid="stSidebar"] .stSelectbox select,
+                section[data-testid="stSidebar"] .stDateInput input {
+                    background-color: #1a1a1a;
+                    border: 2px solid rgba(255,255,255,0.2);
+                    font-size: 16px; /* Prevent zoom on iOS */
+                }
+
+                /* Enhance touch targets for mobile */
+                .stButton button {
+                    min-height: 48px;
+                    font-size: 1rem;
+                }
+
+                /* Improve radio button visibility on mobile */
+                section[data-testid="stSidebar"] .stRadio label {
+                    font-size: 1rem;
+                    padding: 0.5rem 0;
+                }
+            }
+        }
+
+        /* Light mode mobile enhancements */
+        @media (max-width: 768px) {
+            /* Ensure minimum touch target sizes */
+            .stButton button,
+            section[data-testid="stSidebar"] .stTextInput input,
+            section[data-testid="stSidebar"] .stSelectbox select {
+                min-height: 44px; /* iOS minimum recommended touch target */
+            }
+
+            /* Better spacing for mobile form elements */
+            section[data-testid="stSidebar"] .stTextInput,
+            section[data-testid="stSidebar"] .stSelectbox,
+            section[data-testid="stSidebar"] .stDateInput,
+            section[data-testid="stSidebar"] .stSlider {
+                margin-bottom: 1.25rem;
+            }
+
+            /* Ensure labels are readable on mobile */
+            section[data-testid="stSidebar"] h3 {
+                font-size: 1.125rem;
+                margin-top: 1rem;
+                margin-bottom: 0.75rem;
+            }
+
+            /* Improve mobile card readability */
+            .earthquake-card {
+                font-size: 0.9375rem;
+            }
+
+            /* Better mobile metrics display */
+            div[data-testid="metric-container"] {
+                padding: 1rem;
+            }
+
+            div[data-testid="metric-container"] label {
+                font-size: 0.8125rem;
+            }
+
+            div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+                font-size: 1.5rem;
+            }
+
+            /* Mobile-friendly expanders */
+            .streamlit-expanderHeader {
+                font-size: 1rem;
+                padding: 0.875rem 1rem;
+            }
+
+            /* Prevent horizontal scroll on mobile */
+            .main .block-container {
+                overflow-x: hidden;
+            }
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1084,7 +1401,7 @@ def main():
                         st.metric("🎯 Avg Community Intensity", "N/A")
 
                 st.markdown("""
-                <div style='background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 10px 0;'>
+                <div class='info-box'>
                     <b>📱 About DYFI (Did You Feel It?)</b><br>
                     Community members report earthquake experiences through USGS's "Did You Feel It?" system.
                     CDI (Community Decimal Intensity) measures how strongly people felt the earthquake, on a scale of 1-10.
