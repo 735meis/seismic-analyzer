@@ -20,6 +20,20 @@ CHART_WIDTH = 800
 MAGNITUDE_COLOR_SCALE = "Reds"
 OCCURRENCE_COLOR_SCALE = "Purples"
 
+# Color Palette - Bold & Vibrant
+PRIMARY_GRADIENT = ["#667eea", "#764ba2", "#f093fb"]
+ACCENT_COLORS = {
+    "cyan": "#00f5ff",
+    "pink": "#ff006e",
+    "gold": "#ffd60a",
+    "neon_green": "#39ff14",
+    "neon_red": "#ff073a"
+}
+GLASSMORPHISM_COLORS = {
+    "light": "rgba(255, 255, 255, 0.05)",
+    "dark": "rgba(26, 26, 26, 0.7)"
+}
+
 # Magnitude Categories
 MAGNITUDE_CATEGORIES = {
     "Micro": (0, 3),

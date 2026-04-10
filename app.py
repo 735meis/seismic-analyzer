@@ -28,6 +28,20 @@ from src.utils import determine_time_granularity
 from src.analytics import inject_ga_tracking, track_event
 from config.settings import DEFAULT_SEARCH_RADIUS_KM
 
+# New UX features
+from src.globe_visualization import create_3d_globe_view
+from src.social_feed import render_activity_feed
+from src.gamification import (
+    initialize_gamification,
+    render_gamification_sidebar,
+    record_search,
+    record_export,
+    record_share
+)
+from src.social_sharing import create_share_buttons
+from src.storytelling import render_storytelling_sections
+from src.trivia import render_trivia_sidebar
+
 
 # Page configuration
 st.set_page_config(
@@ -236,21 +250,23 @@ def inject_custom_css():
             max-width: 1200px;
         }
 
-        /* Clean card design with slick styling */
+        /* Glassmorphism card design */
         .earthquake-card {
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             border-radius: 16px;
             padding: 1.5rem;
             margin: 1rem 0;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03);
-            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.6s ease-out;
         }
 
         .earthquake-card:hover {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04);
-            transform: translateY(-4px);
+            box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.5);
+            transform: translateY(-4px) scale(1.02);
         }
 
         /* Hero text with modern styling */
@@ -276,10 +292,10 @@ def inject_custom_css():
             line-height: 1.5;
         }
 
-        /* Slick magnitude badge */
+        /* Bold magnitude badge with pulse animation */
         .magnitude-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 24px;
@@ -287,7 +303,8 @@ def inject_custom_css():
             font-size: 1.125rem;
             margin-right: 0.75rem;
             letter-spacing: -0.01em;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            animation: pulse-glow 2s ease-in-out infinite;
         }
 
         .location-text {
@@ -306,18 +323,22 @@ def inject_custom_css():
             letter-spacing: 0;
         }
 
-        /* Enhanced metrics styling */
+        /* Enhanced metrics with glassmorphism */
         div[data-testid="metric-container"] {
-            background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             padding: 1.25rem;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border: 1px solid rgba(0,0,0,0.03);
-            transition: all 0.2s ease;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease-out;
         }
 
         div[data-testid="metric-container"]:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
         }
 
         div[data-testid="metric-container"] label {
@@ -335,9 +356,9 @@ def inject_custom_css():
             letter-spacing: -0.02em;
         }
 
-        /* Slick button styling */
+        /* Bold button styling with vibrant gradient */
         .stButton button {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -346,13 +367,13 @@ def inject_custom_css():
             font-size: 1.0625rem;
             letter-spacing: -0.01em;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
         }
 
         .stButton button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.6);
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
         }
 
         .stButton button:active {
@@ -669,6 +690,63 @@ def inject_custom_css():
         }
 
         /* ============================================
+           ANIMATIONS & KEYFRAMES
+           ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(102, 126, 234, 0.8);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Glass card utility class */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        /* Activity feed item styling */
+        .activity-item {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 10px;
+            animation: slideInLeft 0.5s ease-out;
+            transition: transform 0.2s ease;
+        }
+
+        .activity-item:hover {
+            transform: translateX(5px);
+        }
+
+        /* ============================================
            DARK MODE SUPPORT
            ============================================ */
         @media (prefers-color-scheme: dark) {
@@ -697,15 +775,25 @@ def inject_custom_css():
                 color: #a3a3a3;
             }
 
-            /* Earthquake cards - Dark with subtle gradient */
+            /* Earthquake cards - Glassmorphism dark mode */
             .earthquake-card {
-                background: linear-gradient(145deg, #1a1a1a 0%, #262626 100%);
+                background: rgba(26, 26, 26, 0.7);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
                 border: 1px solid rgba(255,255,255,0.1);
-                box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
             }
 
             .earthquake-card:hover {
-                box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+                box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4);
+            }
+
+            /* Glass card for dark mode */
+            .glass-card {
+                background: rgba(26, 26, 26, 0.7);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border: 1px solid rgba(255,255,255,0.1);
             }
 
             /* Location and time text */
@@ -717,15 +805,17 @@ def inject_custom_css():
                 color: #a3a3a3;
             }
 
-            /* Metrics - Dark background with light text */
+            /* Metrics - Glassmorphism dark mode */
             div[data-testid="metric-container"] {
-                background: linear-gradient(145deg, #1a1a1a 0%, #262626 100%);
+                background: rgba(26, 26, 26, 0.7);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
                 border: 1px solid rgba(255,255,255,0.1);
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
             }
 
             div[data-testid="metric-container"]:hover {
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+                box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4);
             }
 
             div[data-testid="metric-container"] label {
@@ -1130,6 +1220,9 @@ def main():
     # Initialize Google Analytics tracking
     inject_ga_tracking()
 
+    # Initialize gamification system
+    initialize_gamification()
+
     # Header - Clean and minimal
     st.markdown('<h1 class="hero-text">Seismic Earthquake Analyzer</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Real-time earthquake data from USGS</p>', unsafe_allow_html=True)
@@ -1248,6 +1341,17 @@ def main():
         # Submit button
         analyze_button = st.button("Analyze", type="primary", use_container_width=True)
 
+        # Gamification UI (points, badges, progress)
+        st.markdown("---")
+        render_gamification_sidebar()
+
+        # Live activity feed
+        st.markdown("---")
+        render_activity_feed()
+
+        # Daily trivia challenge
+        render_trivia_sidebar()
+
     # Main area - Results
     if analyze_button:
         # Track search event
@@ -1352,6 +1456,10 @@ def main():
                 'has_dyfi_data': not df[(df['cdi'].notna()) | (df['felt'].notna())].empty
             })
 
+            # Record search for gamification
+            has_major = stats.get('magnitude', {}).get('max', 0) >= 7.0
+            record_search(has_major_quake=has_major)
+
             # Summary metrics
             st.markdown("---")
             col1, col2, col3, col4 = st.columns(4)
@@ -1369,11 +1477,31 @@ def main():
 
             st.markdown("---")
 
-            # Map View
+            # Map View with 3D globe option
             st.subheader("🗺️ Earthquake Map View")
-            st.info(f"Interactive map showing earthquake locations. Purple dots indicate magnitude < 2.0, red dots indicate magnitude ≥ 2.0. Larger markers indicate higher magnitudes. Click on markers for details.")
-            map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
-            st.plotly_chart(map_fig, use_container_width=True)
+
+            # Map mode toggle
+            map_mode = st.radio(
+                "Map Style",
+                ["2D Map", "3D Globe"],
+                horizontal=True,
+                help="Choose between 2D interactive map or 3D globe visualization"
+            )
+
+            if map_mode == "3D Globe":
+                st.info("🌍 3D globe showing earthquakes. Rotate, zoom, and explore! Color indicates depth: red (shallow), orange (intermediate), blue (deep).")
+                try:
+                    globe_view = create_3d_globe_view(df, latitude, longitude)
+                    st.pydeck_chart(globe_view)
+                except Exception as e:
+                    st.error(f"Unable to render 3D globe: {str(e)}")
+                    st.info("Falling back to 2D map...")
+                    map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
+                    st.plotly_chart(map_fig, use_container_width=True)
+            else:
+                st.info("Interactive map showing earthquake locations. Purple dots indicate magnitude < 2.0, red dots indicate magnitude ≥ 2.0. Larger markers indicate higher magnitudes. Click on markers for details.")
+                map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
+                st.plotly_chart(map_fig, use_container_width=True)
 
             st.markdown("---")
 
@@ -1476,6 +1604,17 @@ def main():
 
             st.markdown("---")
 
+            # Data Storytelling Section
+            time_range_days = (end_datetime - start_datetime).days or 1
+            render_storytelling_sections(df, stats, time_range_days)
+
+            st.markdown("---")
+
+            # Social Sharing Section
+            create_share_buttons(location, stats)
+
+            st.markdown("---")
+
             # Data export option
             with st.expander("💾 Export Data"):
                 st.markdown("Download the earthquake data as CSV")
@@ -1493,6 +1632,8 @@ def main():
                         'location': location,
                         'num_earthquakes': len(df)
                     })
+                    # Record export for gamification
+                    record_export()
 
         except Exception as e:
             st.error(f"❌ An unexpected error occurred: {str(e)}")
