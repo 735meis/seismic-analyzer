@@ -203,28 +203,6 @@ def inject_mobile_sidebar_behavior():
                     });
                 }
             }, 1000);
-
-            // Make mobile nav hint clickable to open sidebar
-            document.addEventListener('click', function(e) {
-                if (!isMobile()) return;
-
-                if (e.target.classList.contains('mobile-nav-hint')) {
-                    const selectors = [
-                        '[data-testid="collapsedControl"]',
-                        'button[kind="header"]',
-                        'button[kind="headerNoPadding"]',
-                        'button[data-testid="baseButton-header"]'
-                    ];
-
-                    for (const selector of selectors) {
-                        const sidebarButton = document.querySelector(selector);
-                        if (sidebarButton) {
-                            sidebarButton.click();
-                            break;
-                        }
-                    }
-                }
-            });
         })();
         </script>
     """, unsafe_allow_html=True)
@@ -558,42 +536,7 @@ def inject_custom_css():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        /* Mobile navigation hint */
-        .mobile-nav-hint {
-            display: none;
-        }
-
         @media (max-width: 768px) {
-            .mobile-nav-hint {
-                display: block;
-                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                color: white;
-                padding: 0.75rem 1rem;
-                border-radius: 10px;
-                text-align: center;
-                font-size: 0.9375rem;
-                font-weight: 500;
-                margin-bottom: 1rem;
-                box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .mobile-nav-hint:active {
-                transform: scale(0.98);
-            }
-
-            .mobile-nav-hint::before {
-                content: '☰ ';
-                font-size: 1.25rem;
-                margin-right: 0.5rem;
-            }
-
-            /* Hide hint when sidebar is open */
-            section[data-testid="stSidebar"][aria-expanded="true"] ~ .main .mobile-nav-hint {
-                display: none;
-            }
-
             /* Ensure main content is not hidden behind sidebar on mobile */
             .main {
                 position: relative;
@@ -922,14 +865,7 @@ def inject_custom_css():
                 background-color: transparent !important;
             }
 
-            /* Mobile navigation hint for dark mode */
             @media (max-width: 768px) {
-                .mobile-nav-hint {
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    color: #ffffff;
-                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-                }
-
                 /* Ensure hamburger menu is visible in dark mode */
                 button[kind="header"],
                 button[data-testid="baseButton-header"],
@@ -1226,9 +1162,6 @@ def main():
     # Header - Clean and minimal
     st.markdown('<h1 class="hero-text">Seismic Earthquake Analyzer</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Real-time earthquake data from USGS</p>', unsafe_allow_html=True)
-
-    # Mobile navigation hint
-    st.markdown('<div class="mobile-nav-hint">Tap the menu icon to search earthquakes</div>', unsafe_allow_html=True)
 
     # Sidebar - Input Controls
     with st.sidebar:
