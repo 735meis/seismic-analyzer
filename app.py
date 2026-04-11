@@ -1501,6 +1501,10 @@ def main():
         if analyze_button:
             st.success(f"✅ Analysis complete! Found {len(df)} earthquakes.")
 
+        # Social Sharing Section (moved to top for easy access)
+        st.markdown("---")
+        create_share_buttons(location, stats)
+
         # Summary metrics
         st.markdown("---")
         col1, col2, col3, col4 = st.columns(4)
@@ -1620,11 +1624,6 @@ def main():
         # Data Storytelling Section
         time_range_days = (end_datetime - start_datetime).days or 1
         render_storytelling_sections(df, stats, time_range_days)
-
-        st.markdown("---")
-
-        # Social Sharing Section
-        create_share_buttons(location, stats)
 
         st.markdown("---")
 
