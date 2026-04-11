@@ -1353,6 +1353,7 @@ def main():
         render_trivia_sidebar()
 
     # Main area - Results
+    # Store results in session state when analyze button is clicked
     if analyze_button:
         # Track search event
         track_event('search_earthquakes', {
@@ -1446,8 +1447,22 @@ def main():
                 # Aggregate by time interval
                 aggregated_df = aggregate_by_time_interval(df, interval)
 
-            # Display results
-            st.success(f"✅ Analysis complete! Found {len(df)} earthquakes.")
+                # Store results in session state for persistence across reruns
+                st.session_state.results = {
+                    'df': df,
+                    'stats': stats,
+                    'aggregated_df': aggregated_df,
+                    'interval': interval,
+                    'interval_label': interval_label,
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'radius_km': radius_km,
+                    'location': location,
+                    'start_datetime': start_datetime,
+                    'end_datetime': end_datetime,
+                    'start_date': start_date,
+                    'end_date': end_date
+                }
 
             # Track successful search with results
             track_event('search_results', {
@@ -1460,186 +1475,180 @@ def main():
             has_major = stats.get('magnitude', {}).get('max', 0) >= 7.0
             record_search(has_major_quake=has_major)
 
-            # Summary metrics
-            st.markdown("---")
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                st.metric("📊 Total Earthquakes", len(df))
-            with col2:
-                if 'magnitude' in stats:
-                    st.metric("📈 Max Magnitude", f"M {stats['magnitude']['max']:.1f}")
-            with col3:
-                if 'magnitude' in stats:
-                    st.metric("📉 Avg Magnitude", f"M {stats['magnitude']['average']:.2f}")
-            with col4:
-                st.metric("🌐 Search Radius", f"{radius_km} km")
-
-            st.markdown("---")
-
-            # Map View with 3D globe option
-            st.subheader("🗺️ Earthquake Map View")
-
-            # Map mode toggle
-            map_mode = st.radio(
-                "Map Style",
-                ["2D Map", "3D Globe"],
-                horizontal=True,
-                help="Choose between 2D interactive map or 3D globe visualization"
-            )
-
-            if map_mode == "3D Globe":
-                st.info("🌍 3D globe showing earthquakes. Rotate, zoom, and explore! Color indicates depth: red (shallow), orange (intermediate), blue (deep).")
-                try:
-                    globe_view = create_3d_globe_view(df, latitude, longitude)
-                    st.pydeck_chart(globe_view)
-                except Exception as e:
-                    st.error(f"Unable to render 3D globe: {str(e)}")
-                    st.info("Falling back to 2D map...")
-                    map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
-                    st.plotly_chart(map_fig, use_container_width=True)
-            else:
-                st.info("Interactive map showing earthquake locations. Purple dots indicate magnitude < 2.0, red dots indicate magnitude ≥ 2.0. Larger markers indicate higher magnitudes. Click on markers for details.")
-                map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
-                st.plotly_chart(map_fig, use_container_width=True)
-
-            st.markdown("---")
-
-            # Community Confirmed Section (DYFI Data)
-            st.subheader("👥 Confirmed by Community")
-
-            # Check if we have any DYFI data
-            dyfi_data = df[(df['cdi'].notna()) | (df['felt'].notna())]
-
-            if not dyfi_data.empty:
-                # Summary metrics
-                total_felt_reports = int(dyfi_data['felt'].sum()) if dyfi_data['felt'].notna().any() else 0
-                avg_cdi = dyfi_data['cdi'].mean() if dyfi_data['cdi'].notna().any() else None
-                earthquakes_with_reports = len(dyfi_data)
-
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("👋 Total 'Felt It' Reports", f"{total_felt_reports:,}")
-                with col2:
-                    st.metric("📊 Earthquakes Reported", earthquakes_with_reports)
-                with col3:
-                    if avg_cdi:
-                        st.metric("🎯 Avg Community Intensity", f"{avg_cdi:.1f} CDI")
-                    else:
-                        st.metric("🎯 Avg Community Intensity", "N/A")
-
-                st.markdown("""
-                <div class='info-box'>
-                    <b>📱 About DYFI (Did You Feel It?)</b><br>
-                    Community members report earthquake experiences through USGS's "Did You Feel It?" system.
-                    CDI (Community Decimal Intensity) measures how strongly people felt the earthquake, on a scale of 1-10.
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Visualization
-                dyfi_fig = create_dyfi_visualization(df)
-                st.plotly_chart(dyfi_fig, use_container_width=True)
-
-                # Show top felt earthquakes details
-                if len(dyfi_data) > 0:
-                    with st.expander("📋 Top Community-Reported Earthquakes Details"):
-                        top_dyfi = dyfi_data.nlargest(5, 'felt', keep='all')
-
-                        for idx, row in top_dyfi.iterrows():
-                            cdi_desc = get_intensity_description(row['cdi']) if pd.notna(row['cdi']) else "Not reported"
-                            felt_count = int(row['felt']) if pd.notna(row['felt']) else 0
-                            cdi_value = f"{row['cdi']:.1f}" if pd.notna(row['cdi']) else "N/A"
-
-                            st.markdown(f"""
-                            **{row['place']}**
-                            - 🎯 Magnitude: M {row['magnitude']:.1f}
-                            - 👥 Felt by: {felt_count:,} people
-                            - 📊 Community Intensity: {cdi_value} CDI - {cdi_desc}
-                            - 🕐 Time: {row['time'].strftime('%Y-%m-%d %H:%M:%S')}
-                            """)
-                            st.markdown("---")
-            else:
-                st.info("💡 No community-reported data available for these earthquakes. DYFI reports are typically available for larger or more widely-felt earthquakes.")
-
-            st.markdown("---")
-
-            # Timeline Chart
-            st.subheader("📈 Earthquake Timeline")
-            st.info(f"Showing magnitude over time. Each point represents one earthquake.")
-            timeline_fig = create_timeline_chart(df)
-            st.plotly_chart(timeline_fig, use_container_width=True)
-
-            st.markdown("---")
-
-            # Occurrence Bar Chart
-            st.subheader("📊 Earthquake Occurrences")
-            st.info(f"Time granularity: {interval_label}")
-            occurrence_fig = create_occurrence_bar_chart(aggregated_df, interval, interval_label)
-            st.plotly_chart(occurrence_fig, use_container_width=True)
-
-            st.markdown("---")
-
-            # Distribution Charts
-            st.subheader("📊 Distributions")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                mag_dist_fig = create_magnitude_distribution_chart(df)
-                st.plotly_chart(mag_dist_fig, use_container_width=True)
-
-            with col2:
-                depth_dist_fig = create_depth_distribution_chart(df)
-                st.plotly_chart(depth_dist_fig, use_container_width=True)
-
-            # Magnitude vs Depth scatter
-            st.subheader("🔍 Magnitude vs Depth Analysis")
-            mag_depth_fig = create_magnitude_vs_depth_scatter(df)
-            st.plotly_chart(mag_depth_fig, use_container_width=True)
-
-            st.markdown("---")
-
-            # Statistics Section
-            st.subheader("📊 Detailed Statistics")
-            format_statistics_display(stats, location)
-
-            st.markdown("---")
-
-            # Data Storytelling Section
-            time_range_days = (end_datetime - start_datetime).days or 1
-            render_storytelling_sections(df, stats, time_range_days)
-
-            st.markdown("---")
-
-            # Social Sharing Section
-            create_share_buttons(location, stats)
-
-            st.markdown("---")
-
-            # Data export option
-            with st.expander("💾 Export Data"):
-                st.markdown("Download the earthquake data as CSV")
-
-                csv = df.to_csv(index=False)
-                if st.download_button(
-                    label="📥 Download CSV",
-                    data=csv,
-                    file_name=f"earthquakes_{location}_{start_date}_{end_date}.csv",
-                    mime="text/csv"
-                ):
-                    # Track data export
-                    track_event('export_data', {
-                        'format': 'csv',
-                        'location': location,
-                        'num_earthquakes': len(df)
-                    })
-                    # Record export for gamification
-                    record_export()
-
         except Exception as e:
             st.error(f"❌ An unexpected error occurred: {str(e)}")
             st.info("Please try again or contact support if the problem persists.")
 
-    else:
+    # Display results if they exist in session state
+    if 'results' in st.session_state:
+        # Extract results from session state
+        results = st.session_state.results
+        df = results['df']
+        stats = results['stats']
+        aggregated_df = results['aggregated_df']
+        interval = results['interval']
+        interval_label = results['interval_label']
+        latitude = results['latitude']
+        longitude = results['longitude']
+        radius_km = results['radius_km']
+        location = results['location']
+        start_datetime = results['start_datetime']
+        end_datetime = results['end_datetime']
+        start_date = results['start_date']
+        end_date = results['end_date']
+
+        # Show success message when results are first loaded
+        if analyze_button:
+            st.success(f"✅ Analysis complete! Found {len(df)} earthquakes.")
+
+        # Summary metrics
+        st.markdown("---")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("📊 Total Earthquakes", len(df))
+        with col2:
+            if 'magnitude' in stats:
+                st.metric("📈 Max Magnitude", f"M {stats['magnitude']['max']:.1f}")
+        with col3:
+            if 'magnitude' in stats:
+                st.metric("📉 Avg Magnitude", f"M {stats['magnitude']['average']:.2f}")
+        with col4:
+            st.metric("🌐 Search Radius", f"{radius_km} km")
+
+        st.markdown("---")
+
+        # Map View with 3D globe option
+        st.subheader("🗺️ Earthquake Map View")
+
+        # Map mode toggle
+        map_mode = st.radio(
+            "Map Style",
+            ["2D Map", "3D Globe"],
+            horizontal=True,
+            help="Choose between 2D interactive map or 3D globe visualization"
+        )
+
+        if map_mode == "3D Globe":
+            st.info("🌍 3D globe showing earthquakes. Rotate, zoom, and explore! Color indicates depth: red (shallow), orange (intermediate), blue (deep).")
+            try:
+                globe_view = create_3d_globe_view(df, latitude, longitude)
+                st.pydeck_chart(globe_view)
+            except Exception as e:
+                st.error(f"Unable to render 3D globe: {str(e)}")
+                st.info("Falling back to 2D map...")
+                map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
+                st.plotly_chart(map_fig, use_container_width=True)
+        else:
+            st.info("Interactive map showing earthquake locations. Purple dots indicate magnitude < 2.0, red dots indicate magnitude ≥ 2.0. Larger markers indicate higher magnitudes. Click on markers for details.")
+            map_fig = create_earthquake_map(df, latitude, longitude, radius_km)
+            st.plotly_chart(map_fig, use_container_width=True)
+
+        st.markdown("---")
+
+        # Community Confirmed Section (DYFI Data)
+        st.subheader("👥 Confirmed by Community")
+
+        # Check if we have any DYFI data
+        dyfi_data = df[(df['cdi'].notna()) | (df['felt'].notna())]
+
+        if not dyfi_data.empty:
+            # Summary metrics
+            total_felt_reports = int(dyfi_data['felt'].sum()) if dyfi_data['felt'].notna().any() else 0
+            avg_cdi = dyfi_data['cdi'].mean() if dyfi_data['cdi'].notna().any() else None
+            earthquakes_with_reports = len(dyfi_data)
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("📝 Community Reports", f"{total_felt_reports:,}")
+            with col2:
+                st.metric("🌍 Earthquakes Reported", earthquakes_with_reports)
+            with col3:
+                if avg_cdi:
+                    st.metric("📊 Avg Intensity", f"{avg_cdi:.1f} CDI")
+
+            st.markdown("---")
+
+            # DYFI visualization
+            dyfi_fig = create_dyfi_visualization(df)
+            st.plotly_chart(dyfi_fig, use_container_width=True)
+        else:
+            st.info("No community-reported data available for the earthquakes in this search.")
+
+        st.markdown("---")
+
+        # Visualizations Section
+        st.subheader("📊 Temporal Analysis")
+
+        # Timeline chart
+        timeline_fig = create_timeline_chart(df)
+        st.plotly_chart(timeline_fig, use_container_width=True)
+
+        st.markdown("---")
+
+        # Occurrence bar chart
+        occurrence_fig = create_occurrence_bar_chart(aggregated_df, interval, interval_label)
+        st.plotly_chart(occurrence_fig, use_container_width=True)
+
+        st.markdown("---")
+
+        # Distribution Analysis Section
+        st.subheader("📈 Distribution Analysis")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            mag_dist_fig = create_magnitude_distribution_chart(df)
+            st.plotly_chart(mag_dist_fig, use_container_width=True)
+
+        with col2:
+            depth_dist_fig = create_depth_distribution_chart(df)
+            st.plotly_chart(depth_dist_fig, use_container_width=True)
+
+        # Magnitude vs Depth scatter
+        mag_depth_fig = create_magnitude_vs_depth_scatter(df)
+        st.plotly_chart(mag_depth_fig, use_container_width=True)
+
+        st.markdown("---")
+
+        # Statistics Section
+        st.subheader("📊 Detailed Statistics")
+        format_statistics_display(stats, location)
+
+        st.markdown("---")
+
+        # Data Storytelling Section
+        time_range_days = (end_datetime - start_datetime).days or 1
+        render_storytelling_sections(df, stats, time_range_days)
+
+        st.markdown("---")
+
+        # Social Sharing Section
+        create_share_buttons(location, stats)
+
+        st.markdown("---")
+
+        # Data export option
+        with st.expander("💾 Export Data"):
+            st.markdown("Download the earthquake data as CSV")
+
+            csv = df.to_csv(index=False)
+            if st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"earthquakes_{location}_{start_date}_{end_date}.csv",
+                mime="text/csv"
+            ):
+                # Track data export
+                track_event('export_data', {
+                    'format': 'csv',
+                    'location': location,
+                    'num_earthquakes': len(df)
+                })
+                # Record export for gamification
+                record_export()
+
+    elif not analyze_button:
         # Show today's significant earthquakes when no search has been performed
         st.markdown("---")
 

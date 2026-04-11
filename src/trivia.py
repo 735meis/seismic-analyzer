@@ -213,16 +213,19 @@ TRIVIA_QUESTIONS = [
 ]
 
 
-def get_daily_question() -> Dict:
+def get_daily_question(question_offset: int = 0) -> Dict:
     """
-    Get the daily trivia question based on today's date.
+    Get the daily trivia question based on today's date and offset.
+
+    Args:
+        question_offset: Offset to get different questions (0 for first question of the day)
 
     Returns:
         Dictionary with question, options, correct answer, and explanation
     """
-    # Use day of year as seed for consistent daily question
+    # Use day of year plus offset as seed for consistent but varying questions
     day_of_year = datetime.now().timetuple().tm_yday
-    random.seed(day_of_year)
+    random.seed(day_of_year + question_offset)
 
     question = random.choice(TRIVIA_QUESTIONS)
 
@@ -239,14 +242,15 @@ def render_trivia_sidebar():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🧠 Daily Trivia Challenge")
 
-    # Get today's question
-    question = get_daily_question()
-
     # Initialize session state for trivia
     if 'trivia_answered_today' not in st.session_state:
         st.session_state.trivia_answered_today = False
         st.session_state.trivia_correct = False
         st.session_state.trivia_selected = None
+        st.session_state.trivia_question_offset = 0
+
+    # Get today's question with offset for variety
+    question = get_daily_question(st.session_state.trivia_question_offset)
 
     # Show question
     st.sidebar.markdown(
@@ -307,11 +311,13 @@ def render_trivia_sidebar():
         # Show explanation
         st.sidebar.info(question['explanation'])
 
-        # Reset button for testing (in production, this would reset at midnight)
+        # Try another question button
         if st.sidebar.button("Try Another Question", key='trivia_reset'):
             st.session_state.trivia_answered_today = False
             st.session_state.trivia_correct = False
             st.session_state.trivia_selected = None
+            # Increment offset to get a different question
+            st.session_state.trivia_question_offset += 1
             st.rerun()
 
 

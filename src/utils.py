@@ -21,9 +21,9 @@ def determine_time_granularity(start_date: datetime, end_date: datetime) -> tupl
     days = delta.days
 
     if days < 1:
-        return ('H', 'Hourly')
+        return ('h', 'Hourly')
     elif days <= 7:
-        return ('6H', 'Every 6 Hours')
+        return ('6h', 'Every 6 Hours')
     elif days <= 31:
         return ('D', 'Daily')
     elif days <= 93:  # ~3 months

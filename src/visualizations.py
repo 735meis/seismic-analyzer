@@ -110,7 +110,7 @@ def create_occurrence_bar_chart(df: pd.DataFrame, interval: str, interval_label:
         return fig
 
     # Create hover text with date range
-    if interval in ['H', '6H']:
+    if interval in ['h', '6h']:
         hover_text = df['time'].dt.strftime('%Y-%m-%d %H:%M')
     elif interval == 'D':
         hover_text = df['time'].dt.strftime('%Y-%m-%d')
